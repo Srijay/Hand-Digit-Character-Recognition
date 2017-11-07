@@ -2,16 +2,9 @@ from __future__ import absolute_import
 from __future__ import division
 from __future__ import print_function
 
-import argparse
-import sys
-import tempfile
-
-from tensorflow.examples.tutorials.mnist import input_data
-
 import tensorflow as tf
-
-FLAGS = None
-
+import numpy as np
+import random
 
 def cnn(x):
 
@@ -77,16 +70,41 @@ def bias_variable(shape):
 
 def main(_):
 
-  mnist = input_data.read_data_sets(FLAGS.data_dir, one_hot=True)
-  print(type(mnist))
+  trainImages = []
+  trainLabels = []
+  testImages = []
 
-  # To take input images of 28*28
+  with open("Data/train.csv", 'r') as trainfile:
+    next(trainfile)
+    for line in trainfile:
+      data = line.split(",")
+      label = float(data[0])
+      image = map(float,data[1:])
+      trainImages.append(image)
+      trainLabels.append(label)
+
+    trainImages = np.array(trainImages,dtype=np.float32)
+
+    trainLabels = np.array(trainLabels,dtype=np.float32)
+    onehot = np.zeros((trainLabels.size,10))
+    onehot[np.arange(trainLabels.size),trainLabels] = 1
+    trainLabels = onehot
+
+    trainDataSize = len(trainImages)
+
+    with open("Data/test.csv", 'r') as testfile:
+      next(testfile)
+      for line in testfile:
+        data = line.split(",")
+        image = map(int, data[1:])
+        testImages.append(image)
+
+    testImages = np.array(testImages, dtype=np.float32)
+
   x = tf.placeholder(tf.float32, [None, 784])
 
-  # To take labels for images
   y_ = tf.placeholder(tf.float32, [None, 10])
 
-  # Build the Deep Convolutional Neural Network
   y_conv, keep_prob = cnn(x)
 
   with tf.name_scope('loss'):
@@ -102,28 +120,35 @@ def main(_):
     correct_prediction = tf.cast(correct_prediction, tf.float32)
   accuracy = tf.reduce_mean(correct_prediction)
 
-  graph_location = tempfile.mkdtemp()
-  print('Saving graph to: %s' % graph_location)
-  train_writer = tf.summary.FileWriter(graph_location)
-  train_writer.add_graph(tf.get_default_graph())
+  with tf.name_scope('output'):
+    testoutput = tf.argmax(y_conv,1)
 
   with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
+    saver = tf.train.Saver()
+    model_path = "model.ckpt";
     for i in range(20000):
-      batch = mnist.train.next_batch(50)
+      minibatchIds = random.sample(range(0,trainDataSize),50)
+      miniBatchImages = (trainImages[i] for i in minibatchIds)
+      miniBatchLabels = (trainLabels[i] for i in minibatchIds)
       if i % 100 == 0:
         train_accuracy = accuracy.eval(feed_dict={
-            x: batch[0], y_: batch[1], keep_prob: 1.0})
+            x: miniBatchImages, y_: miniBatchLabels, keep_prob: 1.0})
         print('step %d, training accuracy %g' % (i, train_accuracy))
-      train_step.run(feed_dict={x: batch[0], y_: batch[1], keep_prob: 0.5})
+        saver.save(sess,model_path)
+      train_step.run(feed_dict={x: miniBatchImages, y_: miniBatchLabels, keep_prob: 0.5})
 
-    print('test accuracy %g' % accuracy.eval(feed_dict={
-        x: mnist.test.images, y_: mnist.test.labels, keep_prob: 1.0}))
+    saver.restore(sess,model_path)
+    print("Model restored")
+
+    outputs = testoutput.eval(feed_dict={x:testImages},keep_prob=1.0)
+
+    outfile = open("output.csv",'w')
+    outfile.write("ImageId,Label\n")
+    id=1
+    for output in outputs:
+      outfile.write(id+","+output+"\n")
+      id+=1
 
 if __name__ == '__main__':
-  parser = argparse.ArgumentParser()
-  parser.add_argument('--data_dir', type=str,
-                      default='Data',
-                      help='Directory for storing input data')
-  FLAGS, unparsed = parser.parse_known_args()
-  tf.app.run(main=main, argv=[sys.argv[0]] + unparsed)
+  tf.app.run(main=main)
