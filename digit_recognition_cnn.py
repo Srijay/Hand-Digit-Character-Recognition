@@ -78,28 +78,29 @@ def main(_):
     next(trainfile)
     for line in trainfile:
       data = line.split(",")
-      label = float(data[0])
+      label = int(data[0])
       image = map(float,data[1:])
       trainImages.append(image)
       trainLabels.append(label)
 
     trainImages = np.array(trainImages,dtype=np.float32)
 
-    trainLabels = np.array(trainLabels,dtype=np.float32)
-    onehot = np.zeros((trainLabels.size,10))
-    onehot[np.arange(trainLabels.size),trainLabels] = 1
-    trainLabels = onehot
-
+    trainLabels = np.array(trainLabels)
+    onehot = np.zeros((len(trainLabels),10))
+    onehot[np.arange(len(trainLabels)),trainLabels] = 1
+    trainLabels = np.array(onehot,dtype=np.float32)
+    print("Train data is parsed")
     trainDataSize = len(trainImages)
 
     with open("Data/test.csv", 'r') as testfile:
       next(testfile)
       for line in testfile:
         data = line.split(",")
-        image = map(int, data[1:])
+        image = map(int, data)
         testImages.append(image)
 
     testImages = np.array(testImages, dtype=np.float32)
+    print("Test data is parsed")
 
   x = tf.placeholder(tf.float32, [None, 784])
 
@@ -125,12 +126,15 @@ def main(_):
 
   with tf.Session() as sess:
     sess.run(tf.global_variables_initializer())
+    print("Hello")
     saver = tf.train.Saver()
-    model_path = "model.ckpt";
-    for i in range(20000):
+    print("By")
+    model_path = "./model.ckpt";
+    Iterations = 0
+    for i in range(Iterations):
       minibatchIds = random.sample(range(0,trainDataSize),50)
-      miniBatchImages = (trainImages[i] for i in minibatchIds)
-      miniBatchLabels = (trainLabels[i] for i in minibatchIds)
+      miniBatchImages = [trainImages[k] for k in minibatchIds]
+      miniBatchLabels = [trainLabels[k] for k in minibatchIds]
       if i % 100 == 0:
         train_accuracy = accuracy.eval(feed_dict={
             x: miniBatchImages, y_: miniBatchLabels, keep_prob: 1.0})
@@ -141,13 +145,13 @@ def main(_):
     saver.restore(sess,model_path)
     print("Model restored")
 
-    outputs = testoutput.eval(feed_dict={x:testImages},keep_prob=1.0)
+    outputs = testoutput.eval(feed_dict={x:testImages,keep_prob:1.0})
 
     outfile = open("output.csv",'w')
     outfile.write("ImageId,Label\n")
     id=1
     for output in outputs:
-      outfile.write(id+","+output+"\n")
+      outfile.write(str(id)+","+str(output)+"\n")
       id+=1
 
 if __name__ == '__main__':
