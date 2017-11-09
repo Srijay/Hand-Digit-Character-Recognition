@@ -133,8 +133,8 @@ def main(_):
     random.shuffle(trainDataIds)
 
     print("Random split into train and test data")
-    trainIds = trainDataIds[:int(trainDataSize*0.7)]
-    devIds = trainDataIds[int(trainDataSize*0.7):]
+    trainIds = trainDataIds[:int(trainDataSize*0.75)]
+    devIds = trainDataIds[int(trainDataSize*0.75):]
     trainImages = [trainDataImages[k] for k in trainIds]
     devImages = [trainDataImages[k] for k in devIds]
     trainLabels = [trainDataLabels[k] for k in trainIds]
@@ -180,7 +180,7 @@ def main(_):
     Iterations = 20000
     dev_accuracy=0
     for i in range(Iterations):
-      minibatchIds = random.sample(range(0,len(trainImages)),50)
+      minibatchIds = random.sample(range(0,len(trainImages)),30)
       miniBatchImages = [trainImages[k] for k in minibatchIds]
       miniBatchLabels = [trainLabels[k] for k in minibatchIds]
       if i % 50 == 0:
